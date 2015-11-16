@@ -47,7 +47,7 @@ func parseMemInfo(reader io.Reader) (*MemInfo, error) {
 		if err != nil {
 			continue
 		}
-		bytes := int64(size) * units.KiB
+		bytes := uint64(size) * units.KiB
 
 		switch parts[0] {
 		case "MemTotal:":

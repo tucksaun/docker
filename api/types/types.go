@@ -161,7 +161,7 @@ type Info struct {
 	InitSha1           string
 	InitPath           string
 	NCPU               int
-	MemTotal           int64
+	MemTotal           uint64
 	DockerRootDir      string
 	HttpProxy          string
 	HttpsProxy         string

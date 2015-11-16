@@ -4,14 +4,14 @@ package system
 type MemInfo struct {
 	// Total usable RAM (i.e. physical RAM minus a few reserved bits and the
 	// kernel binary code).
-	MemTotal int64
+	MemTotal uint64
 
 	// Amount of free memory.
-	MemFree int64
+	MemFree uint64
 
 	// Total amount of swap space available.
-	SwapTotal int64
+	SwapTotal uint64
 
 	// Amount of swap space that is currently unused.
-	SwapFree int64
+	SwapFree uint64
 }
