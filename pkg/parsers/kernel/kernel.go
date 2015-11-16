@@ -62,7 +62,9 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 	}
 
 	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
+	if n := bytes.IndexByte(release, 0); n != -1 {
+		release = release[:bytes.IndexByte(release, 0)]
+	}
 
 	return ParseRelease(string(release))
 }
