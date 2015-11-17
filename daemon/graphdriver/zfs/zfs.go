@@ -12,7 +12,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"runtime"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
