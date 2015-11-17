@@ -1,5 +1,3 @@
-// +build !freebsd
-
 package links
 
 import (
