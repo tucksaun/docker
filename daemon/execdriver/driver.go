@@ -147,6 +147,7 @@ type ProcessConfig struct {
 
 // TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
 // and CgroupParent.
+// TODO FreeBSD: same as Windows.
 //
 // Process wrapps an os/exec.Cmd to add more metadata
 type Command struct {
