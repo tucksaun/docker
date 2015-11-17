@@ -336,8 +336,7 @@ func (d *driver) Clean(id string) error {
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
-	logrus.Debugf("jail stats %s", id)
-	return nil, nil
+	return nil, fmt.Errorf("FreeBSD: Stats not implemented")
 }
 
 type info struct {
