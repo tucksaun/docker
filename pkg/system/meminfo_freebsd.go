@@ -5,10 +5,10 @@ import (
 	"unsafe"
 )
 
-/*
-#include <kvm.h>
-*/
-import "C"
+// /*
+// #include <kvm.h>
+// */
+//import "C"
 
 // ReadMemInfo retrieves memory statistics of the host system and returns a
 //  MemInfo type.
@@ -50,7 +50,7 @@ func ReadMemInfo() (*MemInfo, error) {
 	// TODO swap free using kvm
 	// cf. https://www.freebsd.org/cgi/man.cgi?query=kvm_getswapinfo&sektion=3
 	// cf. libstatgrab (swap_stats.c)
-	C.kvm_getswapinfo(kvmd, &swapinfo, 1, 0)
+	//C.kvm_getswapinfo(kvmd, &swapinfo, 1, 0)
 
 	meminfo.SwapFree = meminfo.SwapFree * pagesize
 
