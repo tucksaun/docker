@@ -6,7 +6,7 @@ Major milestones for porting docker on FreeBSD are:
 * make it compile (DONE)
 * make it start as a daemon (DONE)
 * load an image and create the container (aka working graphdriver) (DONE)
-* run the container (DONE)
+* run the container (IN PROGRESS SINCE 1.8 merge)
 * working top\start\stop\kill (aka working execdriver) (DONE)
 * working simple networking aka NAT on shared system interface (IN PROGRESS)
 * working port forward (aka working networkdriver)
@@ -70,50 +70,51 @@ Now the docker can setup basic networking, but not nat, so we need to setup it m
 # List of working commands and features
 
 Commands:
-* attach    - ok
+* attach
 * build
-* commit    - ok
+* commit
 * cp        - ok
 * create    - ok
 * diff      - ok
 * events    - ok
-* exec      - ok
-* export    - ok
+* exec
+* export
 * history   - ok
 * images    - ok
-* import    - ok
-* info      - bug
+* import
+* info      - ok
 * inspect   - ok
-* kill      - ok
+* kill
 * load      - not working
-* login     - ok
-* logout    - ok
+* login
+* logout
 * logs      - ok
 * pause     - not working (not supported on freebsd)
-* port      - ok
+* port
 * ps        - ok
 * pull      - ok
-* push      - ok
+* push
 * rename    - ok
 * restart   - ok
 * rm        - ok
 * rmi       - ok
-* run       - ok
-* save      - ok
+* run       - crash if network, does not work if no network
+* save
 * search    - ok
-* start     - ok
-* stats     - not working
-* stop      - ok
-* tag       - ok
-* top       - ok
+* start
+* stats     - should not work (not implemented)
+* stop
+* tag
+* top
 * unpause   - not working (not supported on freebsd)
 * version   - ok
 * wait      - ok
 
 Features:
 * image loading         - ok
-* container creation    - ok
-* container stop\start  - ok
+* container creation    - not working anymore
+* container stop\start  - not working anymore
+* build on FreeBSD 9.3  - ok
 * build on FreeBSD 10.1 - ok
 * shared networking     - partial support
 * port forward          - ok
