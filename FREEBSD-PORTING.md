@@ -84,16 +84,16 @@ Commands:
 * import
 * info      - ok
 * inspect   - ok
-* kill
+* kill      - ok
 * load      - not working
-* login
-* logout
+* login     - ok
+* logout    - ok
 * logs      - ok
 * pause     - not working (not supported on freebsd)
-* port
+* port      - seems ok
 * ps        - ok
 * pull      - ok
-* push
+* push      - should be ok
 * rename    - ok
 * restart   - ok
 * rm        - ok
@@ -102,9 +102,9 @@ Commands:
 * save
 * search    - ok
 * start     - ok
-* stats     - should not work (not implemented)
+* stats     - not working/not crashing (not implemented)
 * stop      - ok
-* tag
+* tag       - should be ok
 * top       - ok
 * unpause   - not working (not supported on freebsd)
 * version   - ok
@@ -112,11 +112,11 @@ Commands:
 
 Features:
 * image loading         - ok
-* container creation    - not working anymore
-* container stop\start  - not working anymore
+* container creation    - ok
+* container stop\start  - ok
 * build on FreeBSD 9.3  - ok
 * build on FreeBSD 10.1 - ok
-* shared networking     - partial support
+* shared networking     - broken
 * port forward          - ok
 * volumes               - not working
 * links                 - not working
