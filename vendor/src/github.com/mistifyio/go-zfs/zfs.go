@@ -335,14 +335,13 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 // A recursion depth may be specified, or a depth of 0 allows unlimited
 // recursion.
 func (d *Dataset) Children(depth uint64) ([]*Dataset, error) {
-	args := []string{"get", "-t", "all", "-Hp"}
+	args := []string{"get", "-t", "all", "-Hp", "all"}
 	if depth > 0 {
 		args = append(args, "-d")
 		args = append(args, strconv.FormatUint(depth, 10))
 	} else {
 		args = append(args, "-r")
 	}
-	args = append(args, "all");
 	args = append(args, d.Name)
 
 	out, err := zfs(args...)
