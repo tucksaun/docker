@@ -6,7 +6,7 @@ Major milestones for porting docker on FreeBSD are:
 * make it compile (DONE)
 * make it start as a daemon (DONE)
 * load an image and create the container (aka working graphdriver) (DONE)
-* run the container (IN PROGRESS SINCE 1.8 merge)
+* run the container (DONE)
 * working top\start\stop\kill (aka working execdriver) (DONE)
 * working simple networking aka NAT on shared system interface (IN PROGRESS)
 * working port forward (aka working networkdriver)
@@ -70,14 +70,14 @@ Now the docker can setup basic networking, but not nat, so we need to setup it m
 # List of working commands and features
 
 Commands:
-* attach
+* attach    - ok
 * build
 * commit
 * cp        - ok
 * create    - ok
 * diff      - ok
 * events    - ok
-* exec
+* exec      - crash
 * export
 * history   - ok
 * images    - ok
@@ -98,14 +98,14 @@ Commands:
 * restart   - ok
 * rm        - ok
 * rmi       - ok
-* run       - crash if network, does not work if no network
+* run       - ok
 * save
 * search    - ok
-* start
+* start     - ok
 * stats     - should not work (not implemented)
-* stop
+* stop      - ok
 * tag
-* top
+* top       - ok
 * unpause   - not working (not supported on freebsd)
 * version   - ok
 * wait      - ok
