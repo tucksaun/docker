@@ -27,21 +27,6 @@ export DOCKER_PKG='github.com/docker/docker'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 
-# We're a nice, sexy, little shell script, and people might try to run us;
-# but really, they shouldn't. We want to be in a container!
-if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
-	{
-		echo "# WARNING! I don't seem to be running in the Docker container."
-		echo "# The result of this command might be an incorrect build, and will not be"
-		echo "#   officially supported."
-		echo "#"
-		echo "# Try this instead: make all"
-		echo "#"
-	} >&2
-fi
-
-echo
-
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
 	validate-dco
