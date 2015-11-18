@@ -6,3 +6,8 @@ package sandbox
 // and waits for it.
 func GC() {
 }
+
+// InitOSContext initializes OS context while configuring network resources
+func InitOSContext() func() {
+	return func() {}
+}
