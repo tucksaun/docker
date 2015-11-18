@@ -96,6 +96,67 @@ func (d *driver) Type() string {
 	return networkType
 }
 
+// Validate performs a static validation on the network configuration parameters.
+// Whatever can be assessed a priori before attempting any programming.
+func (c *networkConfiguration) Validate() error {
+	if c.Mtu < 0 {
+		return ErrInvalidMtu(c.Mtu)
+	}
+
+	// If bridge v4 subnet is specified
+	if c.AddressIPv4 != nil {
+		// If Container restricted subnet is specified, it must be a subset of bridge subnet
+		if c.FixedCIDR != nil {
+			// Check Network address
+			if !c.AddressIPv4.Contains(c.FixedCIDR.IP) {
+				return &ErrInvalidContainerSubnet{}
+			}
+			// Check it is effectively a subset
+			brNetLen, _ := c.AddressIPv4.Mask.Size()
+			cnNetLen, _ := c.FixedCIDR.Mask.Size()
+			if brNetLen > cnNetLen {
+				return &ErrInvalidContainerSubnet{}
+			}
+		}
+		// If default gw is specified, it must be part of bridge subnet
+		if c.DefaultGatewayIPv4 != nil {
+			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
+				return &ErrInvalidGateway{}
+			}
+		}
+	}
+
+	// If default v6 gw is specified, FixedCIDRv6 must be specified and gw must belong to FixedCIDRv6 subnet
+	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
+		if c.FixedCIDRv6 == nil || !c.FixedCIDRv6.Contains(c.DefaultGatewayIPv6) {
+			return &ErrInvalidGateway{}
+		}
+	}
+
+	return nil
+}
+
+
+// Conflicts check if two NetworkConfiguration objects overlap
+func (c *networkConfiguration) Conflicts(o *networkConfiguration) bool {
+	if o == nil {
+		return false
+	}
+
+	// Also empty, becasue only one network with empty name is allowed
+	if c.BridgeName == o.BridgeName {
+		return true
+	}
+
+	// They must be in different subnets
+	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
+	(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
+		return true
+	}
+
+	return false
+}
+
 func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfiguration, error) {
 	if epOptions == nil {
 		return nil, nil

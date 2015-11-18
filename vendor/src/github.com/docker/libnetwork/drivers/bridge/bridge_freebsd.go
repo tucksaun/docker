@@ -3,12 +3,9 @@ package bridge
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os/exec"
-	"path/filepath"
 	"strconv"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
@@ -18,7 +15,6 @@ import (
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -40,66 +36,6 @@ func Init(dc driverapi.DriverCallback) error {
 		Scope: driverapi.LocalScope,
 	}
 	return dc.RegisterDriver(networkType, newDriver(), c)
-}
-
-// Validate performs a static validation on the network configuration parameters.
-// Whatever can be assessed a priori before attempting any programming.
-func (c *networkConfiguration) Validate() error {
-	if c.Mtu < 0 {
-		return ErrInvalidMtu(c.Mtu)
-	}
-
-	// If bridge v4 subnet is specified
-	if c.AddressIPv4 != nil {
-		// If Container restricted subnet is specified, it must be a subset of bridge subnet
-		if c.FixedCIDR != nil {
-			// Check Network address
-			if !c.AddressIPv4.Contains(c.FixedCIDR.IP) {
-				return &ErrInvalidContainerSubnet{}
-			}
-			// Check it is effectively a subset
-			brNetLen, _ := c.AddressIPv4.Mask.Size()
-			cnNetLen, _ := c.FixedCIDR.Mask.Size()
-			if brNetLen > cnNetLen {
-				return &ErrInvalidContainerSubnet{}
-			}
-		}
-		// If default gw is specified, it must be part of bridge subnet
-		if c.DefaultGatewayIPv4 != nil {
-			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
-				return &ErrInvalidGateway{}
-			}
-		}
-	}
-
-	// If default v6 gw is specified, FixedCIDRv6 must be specified and gw must belong to FixedCIDRv6 subnet
-	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
-		if c.FixedCIDRv6 == nil || !c.FixedCIDRv6.Contains(c.DefaultGatewayIPv6) {
-			return &ErrInvalidGateway{}
-		}
-	}
-
-	return nil
-}
-
-// Conflicts check if two NetworkConfiguration objects overlap
-func (c *networkConfiguration) Conflicts(o *networkConfiguration) bool {
-	if o == nil {
-		return false
-	}
-
-	// Also empty, becasue only one network with empty name is allowed
-	if c.BridgeName == o.BridgeName {
-		return true
-	}
-
-	// They must be in different subnets
-	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
-		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
-		return true
-	}
-
-	return false
 }
 
 // fromMap retrieve the configuration data from the map form.
@@ -256,38 +192,6 @@ func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	}
 
 	return nil, nil
-}
-
-// Install/Removes the iptables rules needed to isolate this network
-// from each of the other networks
-func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
-	n.Lock()
-	thisV4 := n.bridge.bridgeIPv4
-	thisV6 := getV6Network(n.config, n.bridge)
-	n.Unlock()
-
-	// Install the rules to isolate this networks against each of the other networks
-	for _, o := range others {
-		o.Lock()
-		otherV4 := o.bridge.bridgeIPv4
-		otherV6 := getV6Network(o.config, o.bridge)
-		o.Unlock()
-
-		/*if !types.CompareIPNet(thisV4, otherV4) {
-			// It's ok to pass a.b.c.d/x, iptables will ignore the host subnet bits
-			if err := setINC(thisV4.String(), otherV4.String(), enable); err != nil {
-				return err
-			}
-		}
-
-		if thisV6 != nil && otherV6 != nil && !types.CompareIPNet(thisV6, otherV6) {
-			if err := setINC(thisV6.String(), otherV6.String(), enable); err != nil {
-				return err
-			}
-		}*/
-	}
-
-	return nil
 }
 
 // Checks whether this network's configuration for the network with this id conflicts with any of the passed networks
@@ -516,7 +420,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		return err
 	}
 
-	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
+	/*setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
 		if err := network.isolateNetwork(networkList, true); err != nil {
 			if err := network.isolateNetwork(networkList, false); err != nil {
 				logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
@@ -524,7 +428,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 			return err
 		}
 		return nil
-	}
+	}*/
 
 	// Prepare the bridge setup configuration
 	bridgeSetup := newBridgeSetup(config, bridgeIface)
@@ -587,7 +491,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
 
 		// Add inter-network communication rules.
-		{config.EnableIPTables, setupNetworkIsolationRules},
+		//{config.EnableIPTables, setupNetworkIsolationRules},
 
 		//Configure bridge networking filtering if ICC is off and IP tables are enabled
 		{!config.EnableICC && config.EnableIPTables, setupBridgeNetFiltering},
@@ -659,7 +563,7 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	}
 
 	// In case of failures after this point, restore the network isolation rules
-	nwList := d.getNetworks()
+	/*nwList := d.getNetworks()
 	defer func() {
 		if err != nil {
 			if err := n.isolateNetwork(nwList, true); err != nil {
@@ -672,332 +576,21 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	err = n.isolateNetwork(nwList, false)
 	if err != nil {
 		return err
-	}
+	}*/
 
 	// Programming
-	err = netlink.LinkDel(n.bridge.Link)
+	//err = netlink.LinkDel(n.bridge.Link)
 
 	return err
 }
 
-func addToBridge(ifaceName, bridgeName string) error {
-	link, err := netlink.LinkByName(ifaceName)
-	if err != nil {
-		return fmt.Errorf("could not find interface %s: %v", ifaceName, err)
-	}
-	if err = netlink.LinkSetMaster(link,
-		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}); err != nil {
-		logrus.Debugf("Failed to add %s to bridge via netlink.Trying ioctl: %v", ifaceName, err)
-		iface, err := net.InterfaceByName(ifaceName)
-		if err != nil {
-			return fmt.Errorf("could not find network interface %s: %v", ifaceName, err)
-		}
-
-		master, err := net.InterfaceByName(bridgeName)
-		if err != nil {
-			return fmt.Errorf("could not find bridge %s: %v", bridgeName, err)
-		}
-
-		return ioctlAddToBridge(iface, master)
-	}
-	return nil
-}
-
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
-	var (
-		ipv6Addr *net.IPNet
-		err      error
-	)
-
-	defer sandbox.InitOSContext()()
-
-	if epInfo == nil {
-		return errors.New("invalid endpoint info passed")
-	}
-
-	if len(epInfo.Interfaces()) != 0 {
-		return errors.New("non empty interface list passed to bridge(local) driver")
-	}
-
-	// Get the network handler and make sure it exists
-	d.Lock()
-	n, ok := d.networks[nid]
-	d.Unlock()
-
-	if !ok {
-		return types.NotFoundErrorf("network %s does not exist", nid)
-	}
-	if n == nil {
-		return driverapi.ErrNoNetwork(nid)
-	}
-
-	// Sanity check
-	n.Lock()
-	if n.id != nid {
-		n.Unlock()
-		return InvalidNetworkIDError(nid)
-	}
-	n.Unlock()
-
-	// Check if endpoint id is good and retrieve correspondent endpoint
-	ep, err := n.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-
-	// Endpoint with that id exists either on desired or other sandbox
-	if ep != nil {
-		return driverapi.ErrEndpointExists(eid)
-	}
-
-	// Try to convert the options to endpoint configuration
-	epConfig, err := parseEndpointOptions(epOptions)
-	if err != nil {
-		return err
-	}
-
-	// Create and add the endpoint
-	n.Lock()
-	endpoint := &bridgeEndpoint{id: eid, config: epConfig}
-	n.endpoints[eid] = endpoint
-	n.Unlock()
-
-	// On failure make sure to remove the endpoint
-	defer func() {
-		if err != nil {
-			n.Lock()
-			delete(n.endpoints, eid)
-			n.Unlock()
-		}
-	}()
-
-	// Generate a name for what will be the host side pipe interface
-	hostIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
-	if err != nil {
-		return err
-	}
-
-	// Generate a name for what will be the sandbox side pipe interface
-	containerIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
-	if err != nil {
-		return err
-	}
-
-	// Generate and add the interface pipe host <-> sandbox
-	veth := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
-		PeerName:  containerIfName}
-	if err = netlink.LinkAdd(veth); err != nil {
-		return err
-	}
-
-	// Get the host side pipe interface handler
-	host, err := netlink.LinkByName(hostIfName)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			netlink.LinkDel(host)
-		}
-	}()
-
-	// Get the sandbox side pipe interface handler
-	sbox, err := netlink.LinkByName(containerIfName)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			netlink.LinkDel(sbox)
-		}
-	}()
-
-	n.Lock()
-	config := n.config
-	n.Unlock()
-
-	// Add bridge inherited attributes to pipe interfaces
-	if config.Mtu != 0 {
-		err = netlink.LinkSetMTU(host, config.Mtu)
-		if err != nil {
-			return err
-		}
-		err = netlink.LinkSetMTU(sbox, config.Mtu)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Attach host side pipe interface into the bridge
-	if err = addToBridge(hostIfName, config.BridgeName); err != nil {
-		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
-	}
-
-	/*if !config.EnableUserlandProxy {
-		err = setHairpinMode(host, true)
-		if err != nil {
-			return err
-		}
-	}*/
-
-	// v4 address for the sandbox side pipe interface
-	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
-	if err != nil {
-		return err
-	}
-	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
-
-	// Down the interface before configuring mac address.
-	if err = netlink.LinkSetDown(sbox); err != nil {
-		return fmt.Errorf("could not set link down for container interface %s: %v", containerIfName, err)
-	}
-
-	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
-	mac := electMacAddress(epConfig, ip4)
-	err = netlink.LinkSetHardwareAddr(sbox, mac)
-	if err != nil {
-		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
-	}
-	endpoint.macAddress = mac
-
-	// Up the host interface after finishing all netlink configuration
-	if err = netlink.LinkSetUp(host); err != nil {
-		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
-	}
-
-	// v6 address for the sandbox side pipe interface
-	ipv6Addr = &net.IPNet{}
-	if config.EnableIPv6 {
-		var ip6 net.IP
-
-		network := n.bridge.bridgeIPv6
-		if config.FixedCIDRv6 != nil {
-			network = config.FixedCIDRv6
-		}
-
-		ones, _ := network.Mask.Size()
-		if ones <= 80 {
-			ip6 = make(net.IP, len(network.IP))
-			copy(ip6, network.IP)
-			for i, h := range mac {
-				ip6[i+10] = h
-			}
-		}
-
-		ip6, err := ipAllocator.RequestIP(network, ip6)
-		if err != nil {
-			return err
-		}
-
-		ipv6Addr = &net.IPNet{IP: ip6, Mask: network.Mask}
-	}
-
-	// Create the sandbox side pipe interface
-	endpoint.srcName = containerIfName
-	endpoint.addr = ipv4Addr
-
-	if config.EnableIPv6 {
-		endpoint.addrv6 = ipv6Addr
-	}
-
-	err = epInfo.AddInterface(ifaceID, endpoint.macAddress, *ipv4Addr, *ipv6Addr)
-	if err != nil {
-		return err
-	}
-
-	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, config.EnableUserlandProxy)
-	if err != nil {
-		return err
-	}
-
+	// TODO FreeBSD
 	return nil
 }
 
 func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
-	var err error
-
-	defer sandbox.InitOSContext()()
-
-	// Get the network handler and make sure it exists
-	d.Lock()
-	n, ok := d.networks[nid]
-	d.Unlock()
-
-	if !ok {
-		return types.NotFoundErrorf("network %s does not exist", nid)
-	}
-	if n == nil {
-		return driverapi.ErrNoNetwork(nid)
-	}
-
-	// Sanity Check
-	n.Lock()
-	if n.id != nid {
-		n.Unlock()
-		return InvalidNetworkIDError(nid)
-	}
-	n.Unlock()
-
-	// Check endpoint id and if an endpoint is actually there
-	ep, err := n.getEndpoint(eid)
-	if err != nil {
-		return err
-	}
-	if ep == nil {
-		return EndpointNotFoundError(eid)
-	}
-
-	// Remove it
-	n.Lock()
-	delete(n.endpoints, eid)
-	n.Unlock()
-
-	// On failure make sure to set back ep in n.endpoints, but only
-	// if it hasn't been taken over already by some other thread.
-	defer func() {
-		if err != nil {
-			n.Lock()
-			if _, ok := n.endpoints[eid]; !ok {
-				n.endpoints[eid] = ep
-			}
-			n.Unlock()
-		}
-	}()
-
-	// Remove port mappings. Do not stop endpoint delete on unmap failure
-	n.releasePorts(ep)
-
-	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
-	if err != nil {
-		return err
-	}
-
-	n.Lock()
-	config := n.config
-	n.Unlock()
-
-	// Release the v6 address allocated to this endpoint's sandbox interface
-	if config.EnableIPv6 {
-		network := n.bridge.bridgeIPv6
-		if config.FixedCIDRv6 != nil {
-			network = config.FixedCIDRv6
-		}
-		err := ipAllocator.ReleaseIP(network, ep.addrv6.IP)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Try removal of link. Discard error: link pair might have
-	// already been deleted by sandbox delete.
-	link, err := netlink.LinkByName(ep.srcName)
-	if err == nil {
-		netlink.LinkDel(link)
-	}
-
+	// TODO FreeBSD
 	return nil
 }
 
@@ -1128,90 +721,6 @@ func (d *driver) Leave(nid, eid types.UUID) error {
 }
 
 func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options map[string]interface{}, enable bool) error {
-	var (
-		cc  *containerConfiguration
-		err error
-	)
-
-	if enable {
-		cc, err = parseContainerOptions(options)
-		if err != nil {
-			return err
-		}
-	} else {
-		cc = endpoint.containerConfig
-	}
-
-	if cc == nil {
-		return nil
-	}
-
-	if endpoint.config != nil && endpoint.config.ExposedPorts != nil {
-		for _, p := range cc.ParentEndpoints {
-			var parentEndpoint *bridgeEndpoint
-			parentEndpoint, err = network.getEndpoint(types.UUID(p))
-			if err != nil {
-				return err
-			}
-			if parentEndpoint == nil {
-				err = InvalidEndpointIDError(p)
-				return err
-			}
-
-			l := newLink(parentEndpoint.addr.IP.String(),
-				endpoint.addr.IP.String(),
-				endpoint.config.ExposedPorts, network.config.BridgeName)
-			if enable {
-				err = l.Enable()
-				if err != nil {
-					return err
-				}
-				defer func() {
-					if err != nil {
-						l.Disable()
-					}
-				}()
-			} else {
-				l.Disable()
-			}
-		}
-	}
-
-	for _, c := range cc.ChildEndpoints {
-		var childEndpoint *bridgeEndpoint
-		childEndpoint, err = network.getEndpoint(types.UUID(c))
-		if err != nil {
-			return err
-		}
-		if childEndpoint == nil {
-			err = InvalidEndpointIDError(c)
-			return err
-		}
-		if childEndpoint.config == nil || childEndpoint.config.ExposedPorts == nil {
-			continue
-		}
-
-		l := newLink(endpoint.addr.IP.String(),
-			childEndpoint.addr.IP.String(),
-			childEndpoint.config.ExposedPorts, network.config.BridgeName)
-		if enable {
-			err = l.Enable()
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err != nil {
-					l.Disable()
-				}
-			}()
-		} else {
-			l.Disable()
-		}
-	}
-
-	if enable {
-		endpoint.containerConfig = cc
-	}
-
+	// TODO FreeBSD
 	return nil
 }
