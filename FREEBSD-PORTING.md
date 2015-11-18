@@ -135,3 +135,5 @@ Now we have following issues:
 * docker can't load (pull, import or commit) an image if not started from build path
 
 Current progress is focused on networking, NAT and port forwarding.
+
+Read to a vision how feature can be ported http://unix.stackexchange.com/questions/127001/linux-lxc-vs-freebsd-jail
