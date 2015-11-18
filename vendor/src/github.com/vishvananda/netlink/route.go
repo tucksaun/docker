@@ -3,7 +3,6 @@ package netlink
 import (
 	"fmt"
 	"net"
-	"syscall"
 )
 
 // Scope is an enum representing a route scope.
