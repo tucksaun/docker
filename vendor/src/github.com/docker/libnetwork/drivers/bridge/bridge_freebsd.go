@@ -501,7 +501,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// Block bridge IP from being allocated.
 	bridgeSetup.queueStep(allocateBridgeIP)
 	// Apply the prepared list of steps, and abort at the first error.
-	bridgeSetup.queueStep(setupDeviceUp)
+	//bridgeSetup.queueStep(setupDeviceUp)
 	if err = bridgeSetup.apply(); err != nil {
 		return err
 	}
