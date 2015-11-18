@@ -43,14 +43,6 @@ const (
 	NTF_ROUTER = 0x80
 )
 
-type Ndmsg struct {
-	Family uint8
-	Index  uint32
-	State  uint16
-	Flags  uint8
-	Type   uint8
-}
-
 func deserializeNdmsg(b []byte) *Ndmsg {
 	var dummy Ndmsg
 	return (*Ndmsg)(unsafe.Pointer(&b[0:unsafe.Sizeof(dummy)][0]))

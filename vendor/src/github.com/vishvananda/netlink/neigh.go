@@ -16,6 +16,14 @@ type Neigh struct {
 	HardwareAddr net.HardwareAddr
 }
 
+type Ndmsg struct {
+	Family uint8
+	Index  uint32
+	State  uint16
+	Flags  uint8
+	Type   uint8
+}
+
 // String returns $ip/$hwaddr $label
 func (neigh *Neigh) String() string {
 	return fmt.Sprintf("%s %s", neigh.IP, neigh.HardwareAddr)

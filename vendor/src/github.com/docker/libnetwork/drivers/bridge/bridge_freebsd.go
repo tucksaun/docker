@@ -469,7 +469,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 		// Setup the bridge to allocate containers global IPv6 addresses in the
 		// specified subnet.
-		{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
+		//{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
 
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
