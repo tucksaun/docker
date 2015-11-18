@@ -70,15 +70,15 @@ func LinkList() ([]Link, error) {
 	return nil, ErrNotImplemented
 }
 
-func AddrAdd(link *Link, addr *Addr) error {
+func AddrAdd(link Link, addr *Addr) error {
 	return ErrNotImplemented
 }
 
-func AddrDel(link *Link, addr *Addr) error {
+func AddrDel(link Link, addr *Addr) error {
 	return ErrNotImplemented
 }
 
-func AddrList(link *Link, family int) ([]Addr, error) {
+func AddrList(link Link, family int) ([]Addr, error) {
 	return nil, ErrNotImplemented
 }
 

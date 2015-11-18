@@ -1,8 +1,6 @@
 package bridge
 
 import (
-	"errors"
-	"fmt"
 	"net"
 	"os/exec"
 	"strconv"
@@ -10,7 +8,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/sandbox"
@@ -437,7 +434,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// by creating a new device and assigning it an IPv4 address.
 	bridgeAlreadyExists := bridgeIface.exists()
 	if !bridgeAlreadyExists {
-		bridgeSetup.queueStep(setupDevice)
+		//bridgeSetup.queueStep(setupDevice)
 	}
 
 	// Even if a bridge exists try to setup IPv4.

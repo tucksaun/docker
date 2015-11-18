@@ -1,5 +1,3 @@
-//+build linux
-
 package bridge
 
 import "github.com/docker/libnetwork/iptables"
