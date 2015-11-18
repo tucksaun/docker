@@ -482,7 +482,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 		//We want to track firewalld configuration so that
 		//if it is started/reloaded, the rules can be applied correctly
-		{config.EnableIPTables, network.setupFirewalld},
+		//{config.EnableIPTables, network.setupFirewalld},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
