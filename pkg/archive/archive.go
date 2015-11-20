@@ -29,11 +29,18 @@ type (
 	ArchiveReader io.Reader
 	Compression   int
 	TarOptions    struct {
-		IncludeFiles    []string
-		ExcludePatterns []string
-		Compression     Compression
-		NoLchown        bool
-		Name            string
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		Name             string
+		IncludeSourceDir bool
+		// When unpacking, specifies whether overwriting a directory with a
+		// non-directory is allowed and vice versa.
+		NoOverwriteDirNonDir bool
+		// For each include when creating an archive, the included name will be
+		// replaced with the matching name from this map.
+		RebaseNames map[string]string
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
