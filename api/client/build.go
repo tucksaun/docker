@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/graph/tags"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -29,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -59,6 +61,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
+	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
@@ -281,6 +285,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("cgroupparent", *flCgroupParent)
 
 	v.Set("dockerfile", *dockerfileName)
+
+	// collect all the build-time environment variables for the container
+	buildArgs := runconfig.ConvertKVStringsToMap(flBuildArg.GetAll())
+	buildArgsJSON, err := json.Marshal(buildArgs)
+	if err != nil {
+		return err
+	}
+	v.Set("buildargs", string(buildArgsJSON))
 
 	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(cli.configFile.AuthConfigs)
