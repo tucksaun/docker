@@ -37,6 +37,10 @@ func GenerateRandomID() string {
 			panic(err) // This shouldn't happen
 		}
 		value := hex.EncodeToString(id)
+		// Check that the first character isn't an integer as that makes jail unhappy.
+		if value[:1] == "0" {
+			continue
+		}
 		// if we try to parse the truncated for as an int and we don't have
 		// an error then the value is all numberic and causes issues when
 		// used as a hostname. ref #3869
