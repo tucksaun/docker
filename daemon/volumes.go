@@ -239,7 +239,17 @@ func validMountMode(mode string) bool {
 }
 
 func (container *Container) specialMounts() []execdriver.Mount {
-	return nil
+	var mounts []execdriver.Mount
+	if container.ResolvConfPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
+	}
+	if container.HostnamePath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
+	}
+	if container.HostsPath != "" {
+		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
+	}
+	return mounts
 }
 
 func (container *Container) setupMounts() error {
