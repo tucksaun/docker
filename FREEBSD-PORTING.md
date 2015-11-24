@@ -117,7 +117,7 @@ Features:
 * build on FreeBSD 10.1 - ok
 * shared networking     - partial support
 * port forward          - ok
-* volumes               - not working
+* volumes               - working
 * links                 - not working
 * virtual netowrking    - not working
 * limits                - not working

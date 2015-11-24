@@ -22,6 +22,7 @@ import (
 
 	"bytes"
 	"strconv"
+	"github.com/docker/docker/pkg/mount"
 )
 
 const DriverName = "jail"
@@ -100,6 +101,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	logrus.Info("[jail] running jail")
 
 	root := c.Rootfs
+	mountPoints, mountParams := d.setupMounts(c)
 
 	// build params for the jail
 	params := []string{
@@ -110,6 +112,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"mount.devfs=1",
 		"allow.raw_sockets=1", // TODO: this must be put in an option
 	}
+	mountPoints = append(mountPoints, "/dev")
+	params = append(params, mountParams...)
 
 	// TODO: there must be a better way to detect linux
 
@@ -124,11 +128,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	if out, err := exec.Command("file", shellpath).Output(); strings.Contains(string(out), "Linux") {
 		if err != nil {
 			logrus.Debugf("[jail] possible mistake deternining container magic: %s", err)
+		} else {
+			params = append(params,
+				"mount=linprocfs "+root+"/proc linprocfs rw 0 0",
+				"mount=linsysfs "+root+"/sys linsysfs rw 0 0",
+			)
+			mountPoints = append(mountPoints, "/proc")
+			mountPoints = append(mountPoints, "/sys")
 		}
-		params = append(params,
-			"mount='linprocfs "+root+"/proc linprocfs rw 0 0'",
-			"mount='linsysfs "+root+"/sys linsysfs rw 0 0'",
-		)
 	}
 
 	if c.Network.Interface != nil {
@@ -183,14 +190,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	<-waitLock
 	exitCode := getExitCode(c)
 
-	if err := exec.Command("umount", root+"/dev").Run(); err != nil {
-		logrus.Debugf("umount %s failed: %s", c.ID, err)
-	}
-	if err := exec.Command("umount", root+"/proc").Run(); err != nil {
-		logrus.Debugf("umount %s failed: %s", c.ID, err)
-	}
-	if err := exec.Command("umount", root+"/sys").Run(); err != nil {
-		logrus.Debugf("umount %s failed: %s", c.ID, err)
+	for _, mountpoint := range mountPoints {
+		if err := mount.ForceUnmount(root+mountpoint); err != nil {
+			logrus.Debugf("umount %s failed for %s: %s", c.ID, mountpoint, err)
+		}
 	}
 
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: false}, waitErr
@@ -292,6 +295,7 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 }
 
 func (d *driver) Terminate(c *execdriver.Command) error {
+	logrus.Debugf("[jail] terminate %s", c.ID)
 	if err := exec.Command("jail", "-r", c.ID).Run(); err != nil {
 		return err
 	}
