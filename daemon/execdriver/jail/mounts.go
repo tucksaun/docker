@@ -31,12 +31,17 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 			parentDestination := fmt.Sprintf("/.dockerbinds/%x", hash)
 			destination := filepath.Join(parentDestination, filepath.Base(m.Source))
 
-			if fi, _ := os.Stat(root+m.Destination); fi != nil && (fi.IsDir() || fi.Size() == 0) {
-				os.Remove(root+m.Destination)
+			fi, e := os.Stat(root+m.Destination);
+			if fi != nil {
+				logrus.Debugf("[jail] fi: %q %q %q", root+m.Destination, fi.IsDir(), fi.Size())
+				if fi.IsDir() || fi.Size() == 0 {
+					os.Remove(root + m.Destination)
+				}
+			} else if e != nil {
+				logrus.Debugf("[jail] fi: %s %s", root+m.Destination, e.Error())
 			}
 			if err := os.Symlink(destination, root+m.Destination); err != nil {
 				logrus.Errorf("[jail] impossible to mount %s: %s.", m.Source, err.Error())
-				continue
 			}
 
 			mount, alreadyPresent := mounts[parentDestination]

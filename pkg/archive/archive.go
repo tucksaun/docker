@@ -29,11 +29,13 @@ type (
 	ArchiveReader io.Reader
 	Compression   int
 	TarOptions    struct {
-		IncludeFiles    []string
-		ExcludePatterns []string
-		Compression     Compression
-		NoLchown        bool
-		Name            string
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		Name             string
+		IncludeSourceDir bool
+		RebaseNames      map[string]string
 	}
 
 	// Archiver allows the reuse of most utility functions of this package

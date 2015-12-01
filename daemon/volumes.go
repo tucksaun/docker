@@ -326,7 +326,7 @@ func (container *Container) mountVolumes() error {
 		}
 
 		if err := mount.Mount(source, destPath, "bind", "rbind,rw"); err != nil {
-			return fmt.Errorf("error while mounting volume %s: %v", source, err)
+			return fmt.Errorf("error while mounting volume %s:%s %s", source, destPath, err)
 		}
 	}
 
@@ -336,7 +336,7 @@ func (container *Container) mountVolumes() error {
 			return err
 		}
 		if err := mount.Mount(mnt.Source, destPath, "bind", "bind,rw"); err != nil {
-			return fmt.Errorf("error while mounting volume %s: %v", mnt.Source, err)
+			return fmt.Errorf("error while mounting volume %s: %s", mnt.Source, err)
 		}
 	}
 	return nil
@@ -346,7 +346,7 @@ func (container *Container) unmountVolumes() {
 	for dest := range container.Volumes {
 		destPath, err := container.GetResourcePath(dest)
 		if err != nil {
-			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
+			logrus.Errorf("error while unmounting volumes (GetResourcePath) %s: %v", destPath, err)
 			continue
 		}
 		if err := mount.ForceUnmount(destPath); err != nil {
@@ -358,7 +358,7 @@ func (container *Container) unmountVolumes() {
 	for _, mnt := range container.specialMounts() {
 		destPath, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
-			logrus.Errorf("error while unmounting volumes %s: %v", destPath, err)
+			logrus.Errorf("error while unmounting volumes (GetResourcePath) %s: %v", destPath, err)
 			continue
 		}
 		if err := mount.ForceUnmount(destPath); err != nil {

@@ -1444,6 +1444,9 @@ func createRouter(s *Server) *mux.Router {
 		ProfilerSetup(r, "/debug/")
 	}
 	m := map[string]map[string]HttpApiFunc{
+		"HEAD": {
+			"/containers/{name:.*}/archive": s.headContainersArchive,
+		},
 		"GET": {
 			"/_ping":                          s.ping,
 			"/events":                         s.getEvents,
@@ -1464,7 +1467,11 @@ func createRouter(s *Server) *mux.Router {
 			"/containers/{name:.*}/logs":      s.getContainersLogs,
 			"/containers/{name:.*}/stats":     s.getContainersStats,
 			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
+			"/containers/{name:.*}/archive":   s.getContainersArchive,
 			"/exec/{id:.*}/json":              s.getExecByID,
+		},
+		"PUT": {
+			"/containers/{name:.*}/archive": s.putContainersArchive,
 		},
 		"POST": {
 			"/auth":                         s.postAuth,

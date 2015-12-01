@@ -32,6 +32,12 @@ func allocateIOVecs(options []string) []C.struct_iovec {
 }
 
 func mount(device, target, mType string, flag uintptr, data string) error {
+	if fileInfo, err := os.Stat(device); err == nil && fileInfo.IsDir() {
+		if err := os.MkdirAll(target, fileInfo.Mode()); err != nil {
+			return fmt.Errorf("Can't mount %q: %s.", device, err.Error())
+		}
+	}
+
 	if mType == "bind" {
 		mType = "nullfs"
 	} else {
@@ -50,7 +56,7 @@ func mount(device, target, mType string, flag uintptr, data string) error {
 			return nil
 		}
 
-		if out, err := exec.Command("mount_nullfs", device, target).Output(); err != nil {
+		if out, err := exec.Command("mount_nullfs", device, target).CombinedOutput(); err != nil {
 			return errors.New(string(out))
 		}
 
