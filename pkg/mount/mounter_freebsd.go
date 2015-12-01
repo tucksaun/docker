@@ -12,9 +12,14 @@ import "C"
 
 import (
 	"fmt"
+	"errors"
 	"strings"
 	"syscall"
 	"unsafe"
+	"os/exec"
+
+	"github.com/Sirupsen/logrus"
+	"os"
 )
 
 func allocateIOVecs(options []string) []C.struct_iovec {
@@ -27,29 +32,46 @@ func allocateIOVecs(options []string) []C.struct_iovec {
 }
 
 func mount(device, target, mType string, flag uintptr, data string) error {
-	isNullFS := false
-
-	xs := strings.Split(data, ",")
-	for _, x := range xs {
-		if x == "bind" {
-			isNullFS = true
+	if mType == "bind" {
+		mType = "nullfs"
+	} else {
+		xs := strings.Split(data, ",")
+		for _, x := range xs {
+			if x == "bind" {
+				mType = "nullfs"
+				break
+			}
 		}
 	}
 
-	options := []string{"fspath", target}
-	if isNullFS {
-		options = append(options, "fstype", "nullfs", "target", device)
-	} else {
-		options = append(options, "fstype", mType, "from", device)
+	if mType == "nullfs" {
+		if fileInfo, _ := os.Stat(device); !fileInfo.IsDir() {
+			logrus.Warnf("Can't mount %q: not a directory", device)
+			return nil
+		}
+
+		if out, err := exec.Command("mount_nullfs", device, target).Output(); err != nil {
+			return errors.New(string(out))
+		}
+
+		return nil
+	}
+
+	options := []string{
+		"fspath", target,
+		"fstype", mType,
+		"from", device,
 	}
 	rawOptions := allocateIOVecs(options)
 	for _, rawOption := range rawOptions {
 		defer C.free(rawOption.iov_base)
 	}
 
-	if errno := C.nmount(&rawOptions[0], C.uint(len(options)), C.int(flag)); errno != 0 {
-		reason := C.GoString(C.strerror(*C.__error()))
-		return fmt.Errorf("Failed to call nmount: %s", reason)
+	logrus.Debugf("C.nmount (%+v, %+v)", options, flag)
+
+	if ret, err := C.nmount(&rawOptions[0], C.uint(len(options)), C.int(flag)); ret != 0 {
+		errno := err.(syscall.Errno)
+		return fmt.Errorf("Failed to call nmount: %s (%d)", err, int(errno))
 	}
 	return nil
 }
