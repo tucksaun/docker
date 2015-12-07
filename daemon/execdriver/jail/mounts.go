@@ -1,14 +1,15 @@
 package jail
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/Sirupsen/logrus"
-	"path/filepath"
-	"crypto/md5"
-	"io"
 )
 
 func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []string) {
@@ -24,6 +25,8 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 		}
 		dirMount := m
 		if !fileInfo.IsDir() {
+			originalDestination := filepath.Join(root, m.Destination)
+
 			parentDir := filepath.Dir(m.Source)
 			h.Reset()
 			io.WriteString(h, parentDir)
@@ -31,16 +34,15 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 			parentDestination := fmt.Sprintf("/.dockerbinds/%x", hash)
 			destination := filepath.Join(parentDestination, filepath.Base(m.Source))
 
-			fi, e := os.Stat(root+m.Destination);
-			if fi != nil {
-				logrus.Debugf("[jail] fi: %q %q %q", root+m.Destination, fi.IsDir(), fi.Size())
-				if fi.IsDir() || fi.Size() == 0 {
-					os.Remove(root + m.Destination)
+			if fi, _ := os.Lstat(originalDestination); fi != nil {
+				// directories, links and empty files can be removed
+				if fi.IsDir() {
+					syscall.Rmdir(originalDestination)
+				} else if fi.Mode() & os.ModeSymlink != 0 || fi.Size() == 0 {
+					syscall.Unlink(originalDestination)
 				}
-			} else if e != nil {
-				logrus.Debugf("[jail] fi: %s %s", root+m.Destination, e.Error())
 			}
-			if err := os.Symlink(destination, root+m.Destination); err != nil {
+			if err := os.Symlink(destination, originalDestination); err != nil {
 				logrus.Errorf("[jail] impossible to mount %s: %s.", m.Source, err.Error())
 			}
 
