@@ -12,8 +12,11 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+const SPECIAL_MOUNT_DIR = "/.dockerbinds"
+
 func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []string) {
 	root := c.Rootfs
+	hasSpecialMounts := false
 	mounts := make(map[string]execdriver.Mount)
 	h := md5.New()
 
@@ -31,7 +34,7 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 			h.Reset()
 			io.WriteString(h, parentDir)
 			hash := h.Sum(nil)
-			parentDestination := fmt.Sprintf("/.dockerbinds/%x", hash)
+			parentDestination := fmt.Sprintf(SPECIAL_MOUNT_DIR + "/%x", hash)
 			destination := filepath.Join(parentDestination, filepath.Base(m.Source))
 
 			if fi, _ := os.Lstat(originalDestination); fi != nil {
@@ -64,9 +67,11 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 					Slave: m.Slave,
 				}
 			}
+
+			hasSpecialMounts = true
 		}
 
-		if err := os.MkdirAll(root + dirMount.Destination, fileInfo.Mode()); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, dirMount.Destination), fileInfo.Mode()); err != nil {
 			logrus.Errorf("[jail] impossible to mount %s: %s.", dirMount.Source, err.Error())
 			continue
 		}
@@ -76,11 +81,15 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 
 	for _, m := range mounts {
 		if m.Writable {
-			params = append(params, fmt.Sprintf("mount=%s %s nullfs rw 0 0", m.Source, root+m.Destination))
+			params = append(params, fmt.Sprintf("mount=%s %s nullfs rw 0 0", m.Source, filepath.Join(root, m.Destination)))
 		} else {
-			params = append(params, fmt.Sprintf("mount=%s %s nullfs ro 0 0", m.Source, root+m.Destination))
+			params = append(params, fmt.Sprintf("mount=%s %s nullfs ro 0 0", m.Source, filepath.Join(root, m.Destination)))
 		}
 		mountPoints = append(mountPoints, m.Destination)
+	}
+
+	if hasSpecialMounts {
+		os.Chmod(filepath.Join(root, SPECIAL_MOUNT_DIR), 0555)
 	}
 
 	return

@@ -595,7 +595,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 func (daemon *Daemon) createRootfs(container *Container) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
-	if err := os.Mkdir(container.root, 0700); err != nil {
+	if err := os.Mkdir(container.root, DEFAULT_ROOT_FS_MASK); err != nil {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
