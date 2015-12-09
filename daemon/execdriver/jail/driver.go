@@ -22,7 +22,6 @@ import (
 
 	"bytes"
 	"strconv"
-	"github.com/docker/docker/pkg/mount"
 )
 
 const DriverName = "jail"
@@ -176,6 +175,8 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 				waitErr = err
 			}
 		}
+		d.unsetupMounts(c, mountPoints)
+
 		close(waitLock)
 	}()
 
@@ -189,12 +190,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	<-waitLock
 	exitCode := getExitCode(c)
-
-	for _, mountpoint := range mountPoints {
-		if err := mount.ForceUnmount(root+mountpoint); err != nil {
-			logrus.Debugf("umount %s failed for %s: %s", c.ID, mountpoint, err)
-		}
-	}
 
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: false}, waitErr
 }

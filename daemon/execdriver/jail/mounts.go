@@ -6,9 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/Sirupsen/logrus"
 )
 
@@ -93,4 +95,22 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 	}
 
 	return
+}
+
+func (d *driver) unsetupMounts(c *execdriver.Command, mountPoints []string) {
+	hasSpecialMounts := false
+
+	for _, mountpoint := range mountPoints {
+		if err := mount.ForceUnmount(filepath.Join(c.Rootfs, mountpoint)); err != nil {
+			logrus.Debugf("umount %s failed for %s: %s", c.ID, mountpoint, err)
+		}
+		if strings.HasPrefix(mountpoint, SPECIAL_MOUNT_DIR) {
+			hasSpecialMounts = true
+			syscall.Rmdir(filepath.Join(c.Rootfs, mountpoint))
+		}
+	}
+
+	if hasSpecialMounts {
+		syscall.Rmdir(filepath.Join(c.Rootfs, SPECIAL_MOUNT_DIR))
+	}
 }
