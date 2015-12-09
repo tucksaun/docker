@@ -1,27 +1,25 @@
 package jail
 
 import (
+	"errors"
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
-	//"log"
 	"os"
 	"os/exec"
-	//"path"
-	//"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-
+	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/pkg/term"
 	"github.com/kr/pty"
-	"io"
 
-	"errors"
-	"strings"
 
-	"bytes"
-	"strconv"
+
 )
 
 const DriverName = "jail"
@@ -137,16 +135,33 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		}
 	}
 
-	if c.Network.Interface != nil {
-		// for some reason if HostNetworking is enabled, c.Network doesnt contain interface name and ip
-		if !c.Network.HostNetworking {
-			params = append(params,
-				"interface="+c.Network.Interface.Bridge,
-				"ip4.addr="+fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-			)
+	if c.Network.ContainerID != "" {
+		network, err := bridge.Allocate(c.ID, "", "", "")
+		if err != nil {
+			logrus.Debugf("[jail] can't create container network: %+v", err.Error())
+		} else {
+			c.Network.Interface = &execdriver.NetworkInterface{
+				Gateway:              network.Gateway,
+				Bridge:               network.Bridge,
+				IPAddress:            network.IPAddress,
+				IPPrefixLen:          network.IPPrefixLen,
+				MacAddress:           network.MacAddress,
+				LinkLocalIPv6Address: network.LinkLocalIPv6Address,
+				GlobalIPv6Address:    network.GlobalIPv6Address,
+				GlobalIPv6PrefixLen:  network.GlobalIPv6PrefixLen,
+				IPv6Gateway:          network.IPv6Gateway,
+				HairpinMode:          network.HairpinMode,
+			}
 		}
+	}
+
+	if c.Network.Interface != nil {
+		params = append(params,
+			"interface=" + c.Network.Interface.Bridge,
+			"ip4.addr=" + fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
+		)
 	} else {
-		logrus.Debug("[jail] networking is disabled")
+		logrus.Debugf("[jail] networking is disabled: %+v", c.Network)
 	}
 
 	params = append(params, "command="+c.ProcessConfig.Entrypoint)
