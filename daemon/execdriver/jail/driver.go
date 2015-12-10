@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -17,13 +18,12 @@ import (
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/pkg/term"
 	"github.com/kr/pty"
-
-
-
 )
 
 const DriverName = "jail"
 const Version = "0.1"
+
+var uidGidRegexp = regexp.MustCompile(`^\d+:\d+$`)
 
 func init() {
 	//
@@ -108,6 +108,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"path=" + root,
 		"mount.devfs=1",
 		"allow.raw_sockets=1", // TODO: this must be put in an option
+	}
+
+	if c.ProcessConfig.User != "" && !uidGidRegexp.MatchString(c.ProcessConfig.User) {
+		params = append(params, "exec.jail_user=" + c.ProcessConfig.User)
 	}
 	mountPoints = append(mountPoints, "/dev")
 	params = append(params, mountParams...)
@@ -229,11 +233,15 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	logrus.Info("[jail] running jexec")
 
 	// build params for the jail
-	params := []string{
+	params := []string{}
+	if c.ProcessConfig.User != "" && !uidGidRegexp.MatchString(c.ProcessConfig.User) {
+		params = append(params, "-U " + c.ProcessConfig.User)
+	}
+	params = append(params, []string{
 		"/usr/sbin/jexec",
 		c.ID,
 		processConfig.Entrypoint,
-	}
+	}...)
 
 	params = append(params, processConfig.Arguments...)
 
