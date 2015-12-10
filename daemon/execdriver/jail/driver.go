@@ -105,6 +105,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"/usr/sbin/jail",
 		"-c",
 		"name=" + c.ID,
+		"host.hostname=" + c.ID,
 		"path=" + root,
 		"mount.devfs=1",
 		"allow.raw_sockets=1", // TODO: this must be put in an option
