@@ -117,7 +117,7 @@ Features:
 * build on FreeBSD 10.1 - ok
 * shared networking     - partial support
 * port forward          - ok
-* volumes               - working
+* volumes               - working but leaks on ZFS datasets, vfs and graph directories and ZFS datasets not properly unmounted
 * links                 - not working
 * virtual netowrking    - not working
 * limits                - not working
