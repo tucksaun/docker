@@ -169,8 +169,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		logrus.Debugf("[jail] networking is disabled: %+v", c.Network)
 	}
 
-	params = append(params, "command="+c.ProcessConfig.Entrypoint)
-	params = append(params, c.ProcessConfig.Arguments...)
+	if c.WorkingDir != "" {
+		params = append(params, "command=/bin/sh")
+		params = append(params, "-c")
+		params = append(params, "cd "+c.WorkingDir+ " && exec "+c.ProcessConfig.Entrypoint+strings.Join(c.ProcessConfig.Arguments, " "))
+	} else {
+		params = append(params, "command="+c.ProcessConfig.Entrypoint)
+		params = append(params, c.ProcessConfig.Arguments...)
+	}
 
 	c.ProcessConfig.Path = "/usr/sbin/jail"
 	c.ProcessConfig.Args = params
