@@ -573,6 +573,11 @@ func createBridgeIface(name string) error {
 	// logrus.Debugf("setting bridge mac address = %v", setBridgeMacAddr)
 	// return netlink.CreateBridge(name, setBridgeMacAddr)
 
+	if err := exec.Command("/sbin/ifconfig", name).Run(); err == nil {
+		// interface already exists
+		return nil
+	}
+
 	if err := exec.Command("/sbin/ifconfig", name, "create").Run(); err != nil {
 		return err
 	}
