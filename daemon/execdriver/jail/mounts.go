@@ -15,6 +15,7 @@ import (
 )
 
 const SPECIAL_MOUNT_DIR = "/.dockerbinds"
+const MNAMELEN = 88
 
 func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []string) {
 	root := c.Rootfs
@@ -29,26 +30,50 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 			continue
 		}
 		dirMount := m
-		if !fileInfo.IsDir() {
-			originalDestination := filepath.Join(root, m.Destination)
 
-			parentDir := filepath.Dir(m.Source)
+		if originalDestination := filepath.Join(root, m.Destination); len(originalDestination) >= MNAMELEN || !fileInfo.IsDir() {
 			h.Reset()
-			io.WriteString(h, parentDir)
+			target := m.Source
+			logrus.Debugf("[mountbind] %s to %s (%s).", m.Source, m.Destination, originalDestination)
+
+			if !fileInfo.IsDir() {
+				target = filepath.Dir(m.Source)
+			}
+
+			io.WriteString(h, target)
 			hash := h.Sum(nil)
-			parentDestination := fmt.Sprintf(SPECIAL_MOUNT_DIR + "/%x", hash)
-			destination := filepath.Join(parentDestination, filepath.Base(m.Source))
+			parentDestination := filepath.Join(SPECIAL_MOUNT_DIR, fmt.Sprintf("%x", hash))
+			logrus.Debugf("[mountbind] target: %s", parentDestination)
+
+			destination := parentDestination
+			if !fileInfo.IsDir() {
+				destination = filepath.Join(destination, filepath.Base(m.Source))
+			}
 
 			if fi, _ := os.Lstat(originalDestination); fi != nil {
 				// directories, links and empty files can be removed
+				logrus.Debugf("[mountbind] originalDestination already exists")
 				if fi.IsDir() {
-					syscall.Rmdir(originalDestination)
+					// Special case where it overlaps with CWD
+					if strings.HasPrefix(c.WorkingDir, m.Destination) {
+						logrus.Debugf("[mountbind] originalDestination overlaps with CWD, we need to clean")
+						os.RemoveAll(originalDestination)
+					} else {
+						syscall.Rmdir(originalDestination)
+					}
 				} else if fi.Mode() & os.ModeSymlink != 0 || fi.Size() == 0 {
 					syscall.Unlink(originalDestination)
 				}
+			} else {
+				logrus.Debugf("[mountbind] creating tree: %s", filepath.Dir(originalDestination))
+				if err := os.MkdirAll(filepath.Dir(originalDestination), 0777); err != nil {
+					logrus.Debugf("[mountbind] error while creating tree: %s", err)
+				}
 			}
+			logrus.Debugf("[mountbind] link %s -> %s", originalDestination, destination)
 			if err := os.Symlink(destination, originalDestination); err != nil {
 				logrus.Errorf("[jail] impossible to mount %s: %s.", m.Source, err.Error())
+				continue
 			}
 
 			mount, alreadyPresent := mounts[parentDestination]
@@ -60,9 +85,9 @@ func (d *driver) setupMounts(c *execdriver.Command) (mountPoints, params []strin
 
 				continue;
 			} else {
-				fileInfo, err = os.Stat(parentDir)
+				fileInfo, err = os.Stat(target)
 				dirMount = execdriver.Mount{
-					Source: parentDir,
+					Source: target,
 					Destination: parentDestination,
 					Writable: m.Writable,
 					Private: m.Private,
