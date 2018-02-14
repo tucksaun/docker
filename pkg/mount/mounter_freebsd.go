@@ -56,6 +56,8 @@ func mount(device, target, mType string, flag uintptr, data string) error {
 			return nil
 		}
 
+		logrus.Debug("Mount %q at %s", device, target)
+
 		if out, err := exec.Command("mount_nullfs", device, target).CombinedOutput(); err != nil {
 			return errors.New(string(out))
 		}
